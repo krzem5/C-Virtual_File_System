@@ -20,7 +20,7 @@ static unsigned long long int _vfs_fd_unalloc_map[VFS_MAX_FD>>6];
 
 
 static void _error(const char* str){
-	printf("ERROR: %s\n",str);
+	printf("Error: %s\n",str);
 }
 
 
