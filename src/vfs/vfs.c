@@ -75,7 +75,6 @@ static void _release_node(vfs_node_t* node){
 		}
 		_release_node(node->parent);
 	}
-	printf("[delete: %s]\n",node->name);
 	if (node->type==VFS_NODE_TYPE_DIRECTORY){
 		if (node->directory.first_entry){
 			_error("directory not empty");
