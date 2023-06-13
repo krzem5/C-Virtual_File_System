@@ -1,6 +1,7 @@
 // add one fd that is alays internally reserved to allow for fast [vfs_open, XXX, vfs_close] operations
 // implement vfs_read and vfs_write
 // implement vfs_absolute_path
+// implement vfs_stat
 
 
 
@@ -19,6 +20,9 @@ int main(void){
 	i=vfs_open("/dir",VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY,NULL);
 	j=vfs_open("/dir/test",VFS_FLAG_CREATE,NULL);
 	vfs_fd_t k=vfs_open("/dir/test",0,NULL);
+	char buffer[VFS_MAX_PATH];
+	vfs_absolute_path(k,buffer,VFS_MAX_PATH);
+	printf("[k]: %s\n",buffer);
 	vfs_unlink(j);
 	vfs_unlink(k);
 	vfs_unlink(i);

@@ -222,7 +222,7 @@ static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
 
 
 void vfs_init(void){
-	_vfs_root_node=_alloc_node("/",1,VFS_NODE_TYPE_DIRECTORY);
+	_vfs_root_node=_alloc_node("",0,VFS_NODE_TYPE_DIRECTORY);
 	_vfs_root_fd=NULL;
 	for (unsigned int i=0;i<(VFS_MAX_FD>>6);i++){
 		_vfs_fd_unalloc_map[i]=0xffffffffffffffffull;
@@ -467,5 +467,42 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 
 
 
-unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length);
-
+unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
+	if (fd==VFS_FD_ERROR){
+		return 0;
+	}
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
+	if (!fd_data){
+		_error("Unknown file descriptor");
+		return 0;
+	}
+	if (!buffer||!buffer_length){
+		return 0;
+	}
+	unsigned int i=buffer_length-1;
+	buffer[i]=0;
+	for (const vfs_node_t* node=fd_data->node;1;node=node->parent){
+		if (i<node->name_length){
+			return 0;
+		}
+		i-=node->name_length;
+		for (unsigned short int j=0;j<node->name_length;j++){
+			buffer[i+j]=node->name[j];
+		}
+		if (!node->parent){
+			break;
+		}
+		if (!i){
+			return 0;
+		}
+		i--;
+		buffer[i]='/';
+	}
+	if (!i){
+		return buffer_length-1;
+	}
+	for (unsigned int j=0;j<buffer_length-i;j++){
+		buffer[j]=buffer[i+j];
+	}
+	return buffer_length-i;
+}
