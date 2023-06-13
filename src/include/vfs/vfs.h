@@ -33,6 +33,9 @@
 
 #define VFS_DIR_ENTRY_INIT {NULL,VFS_FD_ERROR}
 
+#define VFS_REF_CNT_FLAG_UNLINKED 0x80000000
+#define VFS_REF_CNT_COUNT_MASK 0x7fffffff
+
 
 
 typedef unsigned short int vfs_fd_t;

@@ -60,7 +60,7 @@ static vfs_node_t* _alloc_node(const char* name,unsigned short int length,vfs_no
 
 static void _release_node(vfs_node_t* node){
 	node->ref_cnt--;
-	if (node->ref_cnt){
+	if (node->ref_cnt&VFS_REF_CNT_COUNT_MASK){
 		return;
 	}
 	if (node->parent){
@@ -349,7 +349,10 @@ _Bool vfs_unlink(vfs_fd_t fd){
 		_error("Directory not empty");
 		return 0;
 	}
-	_release_node(fd_data->node);
+	if (!(fd_data->node->ref_cnt&VFS_REF_CNT_FLAG_UNLINKED)){
+		fd_data->node->ref_cnt|=VFS_REF_CNT_FLAG_UNLINKED;
+		_release_node(fd_data->node);
+	}
 	_dealloc_descriptor(fd_data);
 	return 1;
 }
@@ -470,7 +473,9 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		for (unsigned int i=0;i<node->name_length+1;i++){
 			entry->name[i]=node->name[i];
 		}
+		_release_node(fd_data->node);
 		fd_data->node=node;
+		node->ref_cnt++;
 		return 1;
 	}
 	_dealloc_descriptor(fd_data);

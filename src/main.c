@@ -10,27 +10,27 @@
 
 
 
-static void _tree_recursive(vfs_fd_t fd,unsigned int indent){
+static void _tree_recursive(vfs_fd_t fd){
 	// │ ├ ─ └
 	vfs_stat_t stat;
 	if (!vfs_stat(fd,&stat)){
 		return;
 	}
-	for (unsigned int i=0;i<indent;i++){
-		putchar(' ');
-		putchar(' ');
+	char path[VFS_MAX_PATH];
+	if (!vfs_absolute_path(fd,path,VFS_MAX_PATH)){
+		return;
 	}
 	if (stat.type==VFS_NODE_TYPE_DATA){
-		printf("%s\n",stat.name);
+		printf("%s\n",path);
 		return;
 	}
 	if (stat.type==VFS_NODE_TYPE_LINK){
-		printf("%s -> %s\n",stat.name,vfs_read_link(fd));
+		printf("%s -> %s\n",path,vfs_read_link(fd));
 		return;
 	}
-	printf("%s/\n",stat.name);
+	printf("%s/\n",path);
 	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(fd,&entry);){
-		_tree_recursive(entry.fd,indent+1);
+		_tree_recursive(entry.fd);
 	}
 }
 
@@ -38,7 +38,7 @@ static void _tree_recursive(vfs_fd_t fd,unsigned int indent){
 
 static void tree(void){
 	vfs_fd_t root=vfs_open("/",0,NULL);
-	_tree_recursive(root,0);
+	_tree_recursive(root);
 	vfs_close(root);
 }
 
@@ -72,6 +72,7 @@ int main(void){
 	vfs_stat(i,&stat);
 	printf("%u | %u\n",stat.type,stat.size);
 	vfs_close(i);
+	tree();
 	vfs_deinit();
 	return 0;
 }
