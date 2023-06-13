@@ -554,3 +554,24 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 	stat->type=node->type;
 	return 1;
 }
+
+
+
+vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
+	if (fd==VFS_FD_ERROR){
+		return VFS_FD_ERROR;
+	}
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
+	if (!fd_data){
+		_error("Unknown file descriptor");
+		return VFS_FD_ERROR;
+	}
+	vfs_node_t* node=fd_data->node;
+	if (flags&(VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY|VFS_FLAG_LINK|_invalid_flags[node->type])){
+		_error("Invalid flags");
+		return VFS_FD_ERROR;
+	}
+	vfs_fd_t new_fd=_alloc_descriptor(node,flags);
+	_lookup_descriptor(new_fd)->offset=fd_data->offset;
+	return new_fd;
+}

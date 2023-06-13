@@ -157,4 +157,8 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat);
 
 
 
+vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags);
+
+
+
 #endif

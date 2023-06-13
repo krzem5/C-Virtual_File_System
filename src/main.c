@@ -11,7 +11,6 @@
 
 
 static void _tree_recursive(vfs_fd_t fd){
-	// │ ├ ─ └
 	vfs_stat_t stat;
 	if (!vfs_stat(fd,&stat)){
 		return;
@@ -53,7 +52,7 @@ int main(void){
 	vfs_close(j);
 	i=vfs_open("/dir",VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY,NULL);
 	j=vfs_open("/dir/test",VFS_FLAG_CREATE,NULL);
-	vfs_fd_t k=vfs_open("/dir/../dir/test",0,NULL);
+	vfs_fd_t k=vfs_dup(j,0);
 	tree();
 	char buffer[VFS_MAX_PATH];
 	vfs_absolute_path(k,buffer,VFS_MAX_PATH);
