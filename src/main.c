@@ -10,13 +10,8 @@
 
 
 
-static void tree(vfs_fd_t fd,unsigned int indent){
-	if (fd==VFS_FD_ERROR){
-		fd=vfs_open("/",0,NULL);
-		tree(fd,0);
-		vfs_close(fd);
-		return;
-	}
+static void _tree_recursive(vfs_fd_t fd,unsigned int indent){
+	// │ ├ ─ └
 	vfs_stat_t stat;
 	if (!vfs_stat(fd,&stat)){
 		return;
@@ -35,23 +30,31 @@ static void tree(vfs_fd_t fd,unsigned int indent){
 	}
 	printf("%s/\n",stat.name);
 	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(fd,&entry);){
-		tree(entry.fd,indent+1);
+		_tree_recursive(entry.fd,indent+1);
 	}
+}
+
+
+
+static void tree(void){
+	vfs_fd_t root=vfs_open("/",0,NULL);
+	_tree_recursive(root,0);
+	vfs_close(root);
 }
 
 
 
 int main(void){
 	vfs_init();
-	vfs_fd_t i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
+	vfs_fd_t i=vfs_open("/./.././../../a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
 	vfs_fd_t j=vfs_open("/b",VFS_FLAG_WRITE,NULL);
 	printf("%u,%u\n",i,j);
 	vfs_close(i);
 	vfs_close(j);
 	i=vfs_open("/dir",VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY,NULL);
 	j=vfs_open("/dir/test",VFS_FLAG_CREATE,NULL);
-	vfs_fd_t k=vfs_open("/dir/test",0,NULL);
-	tree(VFS_FD_ERROR,0);
+	vfs_fd_t k=vfs_open("/dir/../dir/test",0,NULL);
+	tree();
 	char buffer[VFS_MAX_PATH];
 	vfs_absolute_path(k,buffer,VFS_MAX_PATH);
 	printf("[k]: %s\n",buffer);

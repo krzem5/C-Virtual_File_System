@@ -143,9 +143,15 @@ static void _set_link_target(vfs_node_t* node,const char* link_target){
 
 
 
-static vfs_node_t* _lookup_vfs_node(const vfs_node_t* node,const char* name,unsigned short int length){
+static vfs_node_t* _lookup_vfs_node(vfs_node_t* node,const char* name,unsigned short int length){
 	if (node->type!=VFS_NODE_TYPE_DIRECTORY){
 		return NULL;
+	}
+	if (length==1&&name[0]=='.'){
+		return node;
+	}
+	if (length==2&&name[0]=='.'&&name[1]=='.'){
+		return (node->parent?node->parent:node);
 	}
 	for (vfs_node_t* entry=node->directory.first_entry;entry;entry=entry->next_sibling){
 		if (entry->name_length!=length){
@@ -254,12 +260,20 @@ _retry_lookup:
 	vfs_node_t* node=_vfs_root_node;
 	_Bool was_node_created=0;
 	do{
-		path++;
+		do{
+			path++;
+		} while (path[0]=='/');
 		unsigned int i=0;
 		while (path[i]&&path[i]!='/'){
 			i++;
 		}
 		if (!i){
+			if (path[-1]=='/'){
+				if (node->type!=VFS_NODE_TYPE_DIRECTORY){
+					_error("File not found");
+					return VFS_FD_ERROR;
+				}
+			}
 			break;
 		}
 		vfs_node_t* child=_lookup_vfs_node(node,path,i);
