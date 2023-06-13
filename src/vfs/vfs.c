@@ -519,6 +519,10 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 		return 0;
 	}
 	const vfs_node_t* node=fd_data->node;
+	for (unsigned short int i=0;i<=node->name_length;i++){
+		stat->name[i]=node->name[i];
+	}
+	stat->name_length=node->name_length;
 	switch (node->type){
 		case VFS_NODE_TYPE_DATA:
 			stat->size=(node->data.length+VFS_MAX_PATH-1)&(~VFS_MAX_PATH);

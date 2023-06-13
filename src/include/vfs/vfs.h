@@ -59,6 +59,8 @@ typedef struct _VFS_DIR_ENTRY{
 
 
 typedef struct _VFS_STAT{
+	char name[VFS_MAX_PATH];
+	unsigned short int name_length;
 	vfs_offset_t size;
 	vfs_node_type_t type;
 } vfs_stat_t;
