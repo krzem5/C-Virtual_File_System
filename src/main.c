@@ -1,7 +1,7 @@
 // add one fd that is alays internally reserved to allow for fast [vfs_open, XXX, vfs_close] operations
 // implement vfs_read and vfs_write
 // implement vfs_dup
-// add vfs_stat_t to vfs_dir_entry_t
+// change vfs_dir_entry_t to vfs_stat_t (also add fd to vfs_stat_t first)
 
 
 
