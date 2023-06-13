@@ -506,3 +506,28 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 	}
 	return buffer_length-i;
 }
+
+
+
+_Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
+	if (fd==VFS_FD_ERROR){
+		return 0;
+	}
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
+	if (!fd_data){
+		_error("Unknown file descriptor");
+		return 0;
+	}
+	const vfs_node_t* node=fd_data->node;
+	switch (node->type){
+		case VFS_NODE_TYPE_DATA:
+			stat->size=(node->data.length+VFS_MAX_PATH-1)&(~VFS_MAX_PATH);
+			break;
+		case VFS_NODE_TYPE_LINK:
+		case VFS_NODE_TYPE_DIRECTORY:
+			stat->size=VFS_MAX_PATH;
+			break;
+	}
+	stat->type=node->type;
+	return 1;
+}

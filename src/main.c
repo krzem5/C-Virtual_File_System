@@ -1,6 +1,5 @@
 // add one fd that is alays internally reserved to allow for fast [vfs_open, XXX, vfs_close] operations
 // implement vfs_read and vfs_write
-// implement vfs_stat
 
 
 
@@ -32,6 +31,9 @@ int main(void){
 	vfs_write_link(i,"/b");
 	printf("Link: %s\n",vfs_read_link(i));
 	vfs_open("/lnk_to_a",0,NULL);
+	vfs_stat_t stat;
+	vfs_stat(i,&stat);
+	printf("%u | %u\n",stat.type,stat.size);
 	vfs_close(i);
 	vfs_fd_t root=vfs_open("/",0,NULL);
 	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(root,&entry);){

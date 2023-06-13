@@ -58,6 +58,13 @@ typedef struct _VFS_DIR_ENTRY{
 
 
 
+typedef struct _VFS_STAT{
+	vfs_offset_t size;
+	vfs_node_type_t type;
+} vfs_stat_t;
+
+
+
 typedef struct _VFS_NODE{
 	char* name;
 	unsigned short int name_length;
@@ -138,6 +145,10 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry);
 
 
 unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length);
+
+
+
+_Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat);
 
 
 
