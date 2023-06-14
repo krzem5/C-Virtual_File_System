@@ -26,6 +26,11 @@
 #define VFS_FLAG_SEEK_ADD 128
 #define VFS_FLAG_SEEK_END 256
 #define VFS_FLAG_IGNORE_LINKS 512
+#define VFS_FLAG_RELATIVE_PARENT 1024
+#define VFS_FLAG_RELATIVE_CHILD 2048
+#define VFS_FLAG_RELATIVE_NEXT_SIBLING 4096
+#define VFS_FLAG_RELATIVE_PREV_SIBLING 8192
+#define VFS_FLAG_REPLACE_FD 16384
 
 #define VFS_NODE_TYPE_DATA 0
 #define VFS_NODE_TYPE_LINK 1
@@ -143,7 +148,13 @@ _Bool vfs_write_link(vfs_fd_t fd,const char* path);
 
 
 
-_Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry);
+_Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat);
+
+
+
+static inline _Bool vfs_read_dir(vfs_fd_t fd,vfs_stat_t* stat){
+	return (stat->fd==VFS_FD_ERROR?vfs_get_relative(fd,VFS_FLAG_RELATIVE_CHILD,stat):vfs_get_relative(stat->fd,VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_REPLACE_FD,stat));
+}
 
 
 

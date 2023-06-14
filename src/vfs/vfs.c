@@ -6,9 +6,9 @@
 
 
 static const vfs_flags_t _invalid_flags[]={
-	[VFS_NODE_TYPE_DATA]=VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END,
-	[VFS_NODE_TYPE_LINK]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END,
-	[VFS_NODE_TYPE_DIRECTORY]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END,
+	[VFS_NODE_TYPE_DATA]=VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
+	[VFS_NODE_TYPE_LINK]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
+	[VFS_NODE_TYPE_DIRECTORY]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
 };
 
 
@@ -472,44 +472,58 @@ _Bool vfs_write_link(vfs_fd_t fd,const char* path){
 
 
 
-_Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
+_Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 	if (fd==VFS_FD_ERROR){
 		return 0;
 	}
-	if (entry->fd==VFS_FD_ERROR){
-		vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
-		if (!fd_data){
-			_error("Unknown file descriptor");
-			return 0;
-		}
-		if (fd_data->node->type!=VFS_NODE_TYPE_DIRECTORY){
-			_error("Not a directory");
-			return 0;
-		}
-		if (!fd_data->node->directory.first_entry){
-			return 0;
-		}
-		vfs_node_t* node=fd_data->node->directory.first_entry;
-		entry->fd=_alloc_descriptor(node,0);
-		_get_node_data(entry->fd,node,entry);
-		return 1;
-	}
-	vfs_file_descriptor_t* fd_data=_lookup_descriptor(entry->fd);
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
 		_error("Unknown file descriptor");
 		return 0;
 	}
-	vfs_node_t* node=fd_data->node->next_sibling;
-	if (node){
-		_release_node(fd_data->node);
-		fd_data->node=node;
-		node->ref_cnt++;
-		_get_node_data(entry->fd,node,entry);
-		return 1;
+	vfs_node_t* node=fd_data->node;
+	switch (flags&(~VFS_FLAG_REPLACE_FD)){
+		case VFS_FLAG_RELATIVE_PARENT:
+			if (node->parent){
+				node=node->parent;
+			}
+			break;
+		case VFS_FLAG_RELATIVE_CHILD:
+			if (node->type!=VFS_NODE_TYPE_DIRECTORY){
+				_error("Not a directory");
+				return 0;
+			}
+			node=node->directory.first_entry;
+			break;
+		case VFS_FLAG_RELATIVE_NEXT_SIBLING:
+			node=node->next_sibling;
+			break;
+		case VFS_FLAG_RELATIVE_PREV_SIBLING:
+			node=node->prev_sibling;
+			break;
+		default:
+			_error("Invalid flags");
+			return 0;
 	}
-	_dealloc_descriptor(fd_data,1);
-	entry->fd=VFS_FD_ERROR;
-	return 0;
+	if (!node){
+		if (flags&VFS_FLAG_REPLACE_FD){
+			_dealloc_descriptor(fd_data,1);
+		}
+		return 0;
+	}
+	if (flags&VFS_FLAG_REPLACE_FD){
+		node->ref_cnt++;
+		_release_node(fd_data->node);
+		fd_data->flags=0;
+		fd_data->offset=0;
+		fd_data->node=node;
+		stat->fd=fd;
+	}
+	else{
+		stat->fd=_alloc_descriptor(node,0);
+	}
+	_get_node_data(stat->fd,node,stat);
+	return 1;
 }
 
 
@@ -584,7 +598,15 @@ vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
 		_error("Invalid flags");
 		return VFS_FD_ERROR;
 	}
-	vfs_fd_t new_fd=_alloc_descriptor(node,flags);
-	_lookup_descriptor(new_fd)->offset=fd_data->offset;
-	return new_fd;
+	if (flags&VFS_FLAG_REPLACE_FD){
+		node->ref_cnt++;
+		_release_node(fd_data->node);
+		fd_data->flags=flags;
+		fd_data->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
+		fd_data->node=node;
+		return fd;
+	}
+	fd=_alloc_descriptor(node,flags);
+	_lookup_descriptor(fd)->offset=fd_data->offset;
+	return fd;
 }
