@@ -31,7 +31,7 @@
 #define VFS_NODE_TYPE_LINK 1
 #define VFS_NODE_TYPE_DIRECTORY 2
 
-#define VFS_DIR_ENTRY_INIT {NULL,VFS_FD_ERROR}
+#define VFS_DIR_ENTRY_INIT {.fd=VFS_FD_ERROR}
 
 #define VFS_REF_CNT_FLAG_UNLINKED 0x80000000
 #define VFS_REF_CNT_COUNT_MASK 0x7fffffff
@@ -54,19 +54,19 @@ typedef unsigned char vfs_node_type_t;
 
 
 
-typedef struct _VFS_DIR_ENTRY{
-	char* name;
-	vfs_fd_t fd;
-} vfs_dir_entry_t;
-
-
-
 typedef struct _VFS_STAT{
 	char name[VFS_MAX_PATH];
 	unsigned short int name_length;
 	vfs_offset_t size;
 	vfs_node_type_t type;
 } vfs_stat_t;
+
+
+
+typedef struct _VFS_DIR_ENTRY{
+	vfs_stat_t stat;
+	vfs_fd_t fd;
+} vfs_dir_entry_t;
 
 
 

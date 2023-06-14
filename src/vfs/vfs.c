@@ -227,6 +227,25 @@ static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
 
 
 
+static void _get_node_data(const vfs_node_t* node,vfs_stat_t* stat){
+	for (unsigned short int i=0;i<=node->name_length;i++){
+		stat->name[i]=node->name[i];
+	}
+	stat->name_length=node->name_length;
+	switch (node->type){
+		case VFS_NODE_TYPE_DATA:
+			stat->size=(node->data.length+VFS_MAX_PATH-1)&(~VFS_MAX_PATH);
+			break;
+		case VFS_NODE_TYPE_LINK:
+		case VFS_NODE_TYPE_DIRECTORY:
+			stat->size=VFS_MAX_PATH;
+			break;
+	}
+	stat->type=node->type;
+}
+
+
+
 void vfs_init(void){
 	_vfs_root_node=_alloc_node("",0,VFS_NODE_TYPE_DIRECTORY);
 	_vfs_root_fd=NULL;
@@ -454,11 +473,8 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 			return 0;
 		}
 		vfs_node_t* node=fd_data->node->directory.first_entry;
-		entry->name=malloc(node->name_length+1);
-		for (unsigned int i=0;i<node->name_length+1;i++){
-			entry->name[i]=node->name[i];
-		}
 		entry->fd=_alloc_descriptor(node,0);
+		_get_node_data(node,&(entry->stat));
 		return 1;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(entry->fd);
@@ -466,20 +482,15 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		_error("Unknown file descriptor");
 		return 0;
 	}
-	free(entry->name);
 	vfs_node_t* node=fd_data->node->next_sibling;
 	if (node){
-		entry->name=malloc(node->name_length+1);
-		for (unsigned int i=0;i<node->name_length+1;i++){
-			entry->name[i]=node->name[i];
-		}
 		_release_node(fd_data->node);
 		fd_data->node=node;
 		node->ref_cnt++;
+		_get_node_data(node,&(entry->stat));
 		return 1;
 	}
 	_dealloc_descriptor(fd_data);
-	entry->name=NULL;
 	entry->fd=VFS_FD_ERROR;
 	return 0;
 }
@@ -527,7 +538,6 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 }
 
 
-
 _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 	if (fd==VFS_FD_ERROR){
 		return 0;
@@ -537,21 +547,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 		_error("Unknown file descriptor");
 		return 0;
 	}
-	const vfs_node_t* node=fd_data->node;
-	for (unsigned short int i=0;i<=node->name_length;i++){
-		stat->name[i]=node->name[i];
-	}
-	stat->name_length=node->name_length;
-	switch (node->type){
-		case VFS_NODE_TYPE_DATA:
-			stat->size=(node->data.length+VFS_MAX_PATH-1)&(~VFS_MAX_PATH);
-			break;
-		case VFS_NODE_TYPE_LINK:
-		case VFS_NODE_TYPE_DIRECTORY:
-			stat->size=VFS_MAX_PATH;
-			break;
-	}
-	stat->type=node->type;
+	_get_node_data(fd_data->node,stat);
 	return 1;
 }
 
