@@ -80,8 +80,8 @@ typedef struct _VFS_NODE{
 	unsigned int ref_cnt;
 	union{
 		struct{
-			char* data;
-			unsigned int length;
+			unsigned char* data;
+			vfs_offset_t length;
 		} data;
 		struct{
 			char* link;
@@ -128,11 +128,11 @@ _Bool vfs_unlink(vfs_fd_t fd);
 
 
 
-unsigned int vfs_read(vfs_fd_t fd,void* buffer,unsigned int count);
+vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count);
 
 
 
-unsigned int vfs_write(vfs_fd_t fd,const void* buffer,unsigned int count);
+vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count);
 
 
 

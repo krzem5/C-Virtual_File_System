@@ -69,6 +69,12 @@ int main(void){
 	printf("%u | %u\n",stat.type,stat.size);
 	vfs_close(i);
 	tree();
+	i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
+	j=vfs_dup(i,VFS_FLAG_READ);
+	printf("Write: %u\n",vfs_write(i,"abc_def_ghi",12));
+	char data[128];
+	printf("Read: %u (%s)\n",vfs_read(j,data,128),data);
+	vfs_close(i);
 	vfs_deinit();
 	return 0;
 }

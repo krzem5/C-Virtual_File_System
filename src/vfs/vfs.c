@@ -395,11 +395,62 @@ _Bool vfs_unlink(vfs_fd_t fd){
 
 
 
-unsigned int vfs_read(vfs_fd_t fd,void* buffer,unsigned int count);
+vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count){
+	if (fd==VFS_FD_ERROR){
+		return VFS_OFFSET_ERROR;
+	}
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
+	if (!fd_data){
+		_error("Unknown file descriptor");
+		return VFS_OFFSET_ERROR;
+	}
+	if (!(fd_data->flags&VFS_FLAG_READ)){
+		_error("Operation not supported");
+		return VFS_OFFSET_ERROR;
+	}
+	vfs_node_t* node=fd_data->node;
+	if (fd_data->offset+(unsigned long long int)(count)>node->data.length){
+		count=node->data.length-fd_data->offset;
+	}
+	unsigned char* buffer_data=buffer;
+	for (vfs_offset_t i=0;i<count;i++){
+		buffer_data[i]=node->data.data[fd_data->offset+i];
+	}
+	fd_data->offset+=count;
+	return count;
+}
 
 
 
-unsigned int vfs_write(vfs_fd_t fd,const void* buffer,unsigned int count);
+vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
+	if (fd==VFS_FD_ERROR){
+		return VFS_OFFSET_ERROR;
+	}
+	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
+	if (!fd_data){
+		_error("Unknown file descriptor");
+		return VFS_OFFSET_ERROR;
+	}
+	if (!(fd_data->flags&VFS_FLAG_WRITE)){
+		_error("Operation not supported");
+		return VFS_OFFSET_ERROR;
+	}
+	vfs_node_t* node=fd_data->node;
+	if (fd_data->offset+(unsigned long long int)(count)>0xffffffffull){
+		count=0xffffffff-fd_data->offset;
+	}
+	vfs_offset_t offset=fd_data->offset;
+	fd_data->offset+=count;
+	if (fd_data->offset>node->data.length){
+		node->data.length=fd_data->offset;
+		node->data.data=realloc(node->data.data,node->data.length);
+	}
+	const unsigned char* buffer_data=buffer;
+	for (unsigned int i=0;i<count;i++){
+		node->data.data[offset+i]=buffer_data[i];
+	}
+	return count;
+}
 
 
 
@@ -429,6 +480,9 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 		default:
 			_error("Invalid flags");
 			return VFS_OFFSET_ERROR;
+	}
+	if (fd_data->offset>fd_data->node->data.length){
+		fd_data->offset=fd_data->node->data.length;
 	}
 	return fd_data->offset;
 }
