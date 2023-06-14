@@ -55,6 +55,7 @@ typedef unsigned char vfs_node_type_t;
 
 
 typedef struct _VFS_STAT{
+	vfs_fd_t fd;
 	char name[VFS_MAX_PATH];
 	unsigned short int name_length;
 	vfs_offset_t size;

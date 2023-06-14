@@ -242,7 +242,8 @@ static void _dealloc_descriptor(vfs_file_descriptor_t* fd_data,_Bool fill_tempor
 
 
 
-static void _get_node_data(const vfs_node_t* node,vfs_stat_t* stat){
+static void _get_node_data(vfs_fd_t fd,const vfs_node_t* node,vfs_stat_t* stat){
+	stat->fd=fd;
 	for (unsigned short int i=0;i<=node->name_length;i++){
 		stat->name[i]=node->name[i];
 	}
@@ -490,7 +491,7 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		}
 		vfs_node_t* node=fd_data->node->directory.first_entry;
 		entry->fd=_alloc_descriptor(node,0);
-		_get_node_data(node,&(entry->stat));
+		_get_node_data(entry->fd,node,&(entry->stat));
 		return 1;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(entry->fd);
@@ -503,7 +504,7 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		_release_node(fd_data->node);
 		fd_data->node=node;
 		node->ref_cnt++;
-		_get_node_data(node,&(entry->stat));
+		_get_node_data(entry->fd,node,&(entry->stat));
 		return 1;
 	}
 	_dealloc_descriptor(fd_data,1);
@@ -563,7 +564,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 		_error("Unknown file descriptor");
 		return 0;
 	}
-	_get_node_data(fd_data->node,stat);
+	_get_node_data(fd,fd_data->node,stat);
 	return 1;
 }
 
