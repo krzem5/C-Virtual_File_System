@@ -274,10 +274,12 @@ void vfs_init(void){
 
 
 void vfs_deinit(void){
+	_vfs_temp_fd=VFS_FD_ERROR;
 	while (_vfs_root_fd){
 		_dealloc_descriptor(_vfs_root_fd,0);
 	}
 	_release_node_with_children(_vfs_root_node);
+	_vfs_root_node=NULL;
 }
 
 
@@ -359,6 +361,7 @@ _error_cleanup:
 
 _Bool vfs_close(vfs_fd_t fd){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -374,6 +377,7 @@ _Bool vfs_close(vfs_fd_t fd){
 
 _Bool vfs_unlink(vfs_fd_t fd){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -397,6 +401,7 @@ _Bool vfs_unlink(vfs_fd_t fd){
 
 vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -424,6 +429,7 @@ vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count){
 
 vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -456,6 +462,7 @@ vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
 
 vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -491,6 +498,7 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 
 unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -532,6 +540,7 @@ unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 
 _Bool vfs_write_link(vfs_fd_t fd,const char* path){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -551,6 +560,7 @@ _Bool vfs_write_link(vfs_fd_t fd,const char* path){
 
 _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -607,6 +617,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 
 unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -648,6 +659,7 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 
 _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
@@ -663,6 +675,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 
 vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
 	if (fd==VFS_FD_ERROR){
+		_error("Unknown file descriptor");
 		return VFS_FD_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
