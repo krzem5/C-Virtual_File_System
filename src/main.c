@@ -1,7 +1,3 @@
-// implement vfs_read and vfs_write
-
-
-
 #include <vfs/vfs.h>
 #include <stdio.h>
 
