@@ -525,14 +525,17 @@ unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 		return 1;
 	}
 	unsigned int length=0;
-	do{
+	while (1){
 		if (length>=buffer_length){
 			buffer[length-1]=0;
 			return length-2;
 		}
 		buffer[length]=link[length];
+		if (!link[length]){
+			break;
+		}
 		length++;
-	} while (link[length]);
+	}
 	return length;
 }
 
