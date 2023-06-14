@@ -71,7 +71,7 @@ int main(void){
 	vfs_open("/lnk_to_a",0,NULL);
 	vfs_stat_t stat;
 	vfs_stat(i,&stat);
-	printf("%u | %u\n",stat.type,stat.size);
+	printf("type: %u, size: %u\n",stat.type,stat.size);
 	vfs_close(i);
 	tree();
 	i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
