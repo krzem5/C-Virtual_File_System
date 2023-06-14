@@ -491,7 +491,7 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		}
 		vfs_node_t* node=fd_data->node->directory.first_entry;
 		entry->fd=_alloc_descriptor(node,0);
-		_get_node_data(entry->fd,node,&(entry->stat));
+		_get_node_data(entry->fd,node,entry);
 		return 1;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(entry->fd);
@@ -504,7 +504,7 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		_release_node(fd_data->node);
 		fd_data->node=node;
 		node->ref_cnt++;
-		_get_node_data(entry->fd,node,&(entry->stat));
+		_get_node_data(entry->fd,node,entry);
 		return 1;
 	}
 	_dealloc_descriptor(fd_data,1);

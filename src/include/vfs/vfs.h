@@ -64,10 +64,7 @@ typedef struct _VFS_STAT{
 
 
 
-typedef struct _VFS_DIR_ENTRY{
-	vfs_stat_t stat;
-	vfs_fd_t fd;
-} vfs_dir_entry_t;
+typedef vfs_stat_t vfs_dir_entry_t;
 
 
 
