@@ -17,7 +17,13 @@ static void _tree_recursive(vfs_fd_t fd){
 		return;
 	}
 	if (stat.type==VFS_NODE_TYPE_LINK){
-		printf("%s -> %s\n",path,vfs_read_link(fd));
+		printf("%s -> ",path);
+		if (vfs_read_link(fd,path,VFS_MAX_PATH)){
+			printf("%s\n",path);
+		}
+		else{
+			printf("(no target)\n");
+		}
 		return;
 	}
 	printf("%s/\n",path);
@@ -56,9 +62,12 @@ int main(void){
 	vfs_close(vfs_open("/lnk_to_a",VFS_FLAG_CREATE|VFS_FLAG_LINK,"/a"));
 	vfs_unlink(vfs_open("/lnk_to_a",0,NULL));
 	i=vfs_open("/lnk_to_a",VFS_FLAG_IGNORE_LINKS,NULL);
-	printf("Link: %s\n",vfs_read_link(i));
+	char link_target_path[VFS_MAX_PATH];
+	link_target_path[vfs_read_link(i,link_target_path,VFS_MAX_PATH)]=0;
+	printf("Link: %s\n",link_target_path);
 	vfs_write_link(i,"/b");
-	printf("Link: %s\n",vfs_read_link(i));
+	link_target_path[vfs_read_link(i,link_target_path,VFS_MAX_PATH)]=0;
+	printf("Link: %s\n",link_target_path);
 	vfs_open("/lnk_to_a",0,NULL);
 	vfs_stat_t stat;
 	vfs_stat(i,&stat);

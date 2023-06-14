@@ -436,8 +436,8 @@ vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_node_t* node=fd_data->node;
-	if (fd_data->offset+(unsigned long long int)(count)>0xffffffffull){
-		count=0xffffffff-fd_data->offset;
+	if (fd_data->offset+(unsigned long long int)(count)>0xfffffffeull){
+		count=0xfffffffe -fd_data->offset;
 	}
 	vfs_offset_t offset=fd_data->offset;
 	fd_data->offset+=count;
@@ -489,20 +489,43 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 
 
 
-const char* vfs_read_link(vfs_fd_t fd){
+unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 	if (fd==VFS_FD_ERROR){
-		return NULL;
+		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
 		_error("Unknown file descriptor");
-		return NULL;
+		return 0;
 	}
 	if (fd_data->node->type!=VFS_NODE_TYPE_LINK){
 		_error("Not a link");
-		return NULL;
+		return 0;
 	}
-	return fd_data->node->link.link;
+	if (!buffer_length){
+		return 0;
+	}
+	const char* link=fd_data->node->link.link;
+	if (!link){
+		if (buffer_length){
+			buffer[0]=0;
+		}
+		return 0;
+	}
+	if (buffer_length==1){
+		buffer[0]=0;
+		return 1;
+	}
+	unsigned int length=0;
+	do{
+		if (length>=buffer_length){
+			buffer[length-1]=0;
+			return length-2;
+		}
+		buffer[length]=link[length];
+		length++;
+	} while (link[length]);
+	return length;
 }
 
 

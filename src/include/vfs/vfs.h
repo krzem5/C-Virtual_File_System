@@ -140,7 +140,7 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags);
 
 
 
-const char* vfs_read_link(vfs_fd_t fd);
+unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length);
 
 
 
