@@ -16,6 +16,7 @@ static const vfs_flags_t _invalid_flags[]={
 static vfs_node_t* _vfs_root_node=NULL;
 static vfs_file_descriptor_t* _vfs_root_fd=NULL;
 static unsigned long long int _vfs_fd_unalloc_map[VFS_MAX_FD>>6];
+static vfs_fd_t _vfs_temp_fd=VFS_FD_ERROR;
 
 
 
@@ -170,34 +171,62 @@ _next_entry:
 
 
 
-static vfs_fd_t _alloc_descriptor(vfs_node_t* node,vfs_flags_t flags){
-	unsigned int i=0;
-	while (!_vfs_fd_unalloc_map[i]){
-		i++;
-		if (i==(VFS_MAX_FD>>6)){
-			return VFS_FD_ERROR;
-		}
+static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
+	if (fd>=VFS_MAX_FD||(_vfs_fd_unalloc_map[fd>>6]&(1ull<<(fd&63)))){
+		return NULL;
 	}
-	vfs_fd_t fd=(i<<6)+__builtin_ffsll(_vfs_fd_unalloc_map[i])-1;
-	_vfs_fd_unalloc_map[i]&=_vfs_fd_unalloc_map[i]-1;
-	vfs_file_descriptor_t* out=malloc(sizeof(vfs_file_descriptor_t));
-	out->prev=NULL;
-	out->next=_vfs_root_fd;
-	if (_vfs_root_fd){
-		_vfs_root_fd->prev=out;
+	vfs_file_descriptor_t* out=_vfs_root_fd;
+	while (out->fd!=fd){
+		out=out->next;
 	}
-	out->node=node;
-	out->flags=flags;
-	out->fd=fd;
-	out->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
-	node->ref_cnt++;
-	_vfs_root_fd=out;
-	return fd;
+	return out;
 }
 
 
 
-static void _dealloc_descriptor(vfs_file_descriptor_t* fd_data){
+static vfs_fd_t _alloc_descriptor(vfs_node_t* node,vfs_flags_t flags){
+	vfs_file_descriptor_t* fd_data;
+	if (_vfs_temp_fd!=VFS_FD_ERROR){
+		fd_data=_lookup_descriptor(_vfs_temp_fd);
+		_vfs_temp_fd=VFS_FD_ERROR;
+	}
+	else{
+		unsigned int i=0;
+		while (!_vfs_fd_unalloc_map[i]){
+			i++;
+			if (i==(VFS_MAX_FD>>6)){
+				return VFS_FD_ERROR;
+			}
+		}
+		vfs_fd_t fd=(i<<6)+__builtin_ffsll(_vfs_fd_unalloc_map[i])-1;
+		_vfs_fd_unalloc_map[i]&=_vfs_fd_unalloc_map[i]-1;
+		fd_data=malloc(sizeof(vfs_file_descriptor_t));
+		fd_data->prev=NULL;
+		fd_data->next=_vfs_root_fd;
+		fd_data->fd=fd;
+		if (_vfs_root_fd){
+			_vfs_root_fd->prev=fd_data;
+		}
+		_vfs_root_fd=fd_data;
+	}
+	fd_data->node=node;
+	fd_data->flags=flags;
+	fd_data->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
+	node->ref_cnt++;
+	return fd_data->fd;
+}
+
+
+
+static void _dealloc_descriptor(vfs_file_descriptor_t* fd_data,_Bool fill_temporary_fd){
+	if (fd_data->node){
+		_release_node(fd_data->node);
+		fd_data->node=NULL;
+	}
+	if (fill_temporary_fd&&_vfs_temp_fd==VFS_FD_ERROR){
+		_vfs_temp_fd=fd_data->fd;
+		return;
+	}
 	if (fd_data->next){
 		fd_data->next->prev=fd_data->prev;
 	}
@@ -208,21 +237,7 @@ static void _dealloc_descriptor(vfs_file_descriptor_t* fd_data){
 		_vfs_root_fd=(fd_data->next?_vfs_root_fd->next:_vfs_root_fd->prev);
 	}
 	_vfs_fd_unalloc_map[fd_data->fd>>6]|=1ull<<(fd_data->fd&63);
-	_release_node(fd_data->node);
 	free(fd_data);
-}
-
-
-
-static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
-	if (fd>=VFS_MAX_FD||(_vfs_fd_unalloc_map[fd>>6]&(1ull<<(fd&63)))){
-		return NULL;
-	}
-	vfs_file_descriptor_t* out=_vfs_root_fd;
-	while (out->fd!=fd){
-		out=out->next;
-	}
-	return out;
 }
 
 
@@ -252,13 +267,14 @@ void vfs_init(void){
 	for (unsigned int i=0;i<(VFS_MAX_FD>>6);i++){
 		_vfs_fd_unalloc_map[i]=0xffffffffffffffffull;
 	}
+	_vfs_temp_fd=VFS_FD_ERROR;
 }
 
 
 
 void vfs_deinit(void){
 	while (_vfs_root_fd){
-		_dealloc_descriptor(_vfs_root_fd);
+		_dealloc_descriptor(_vfs_root_fd,0);
 	}
 	_release_node_with_children(_vfs_root_node);
 }
@@ -349,7 +365,7 @@ _Bool vfs_close(vfs_fd_t fd){
 		_error("Unknown file descriptor");
 		return 0;
 	}
-	_dealloc_descriptor(fd_data);
+	_dealloc_descriptor(fd_data,1);
 	return 1;
 }
 
@@ -372,7 +388,7 @@ _Bool vfs_unlink(vfs_fd_t fd){
 		fd_data->node->ref_cnt|=VFS_REF_CNT_FLAG_UNLINKED;
 		_release_node(fd_data->node);
 	}
-	_dealloc_descriptor(fd_data);
+	_dealloc_descriptor(fd_data,1);
 	return 1;
 }
 
@@ -490,7 +506,7 @@ _Bool vfs_read_dir(vfs_fd_t fd,vfs_dir_entry_t* entry){
 		_get_node_data(node,&(entry->stat));
 		return 1;
 	}
-	_dealloc_descriptor(fd_data);
+	_dealloc_descriptor(fd_data,1);
 	entry->fd=VFS_FD_ERROR;
 	return 0;
 }
