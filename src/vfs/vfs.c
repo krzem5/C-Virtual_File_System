@@ -17,12 +17,7 @@ static vfs_node_t* _vfs_root_node=NULL;
 static vfs_file_descriptor_t* _vfs_root_fd=NULL;
 static unsigned long long int _vfs_fd_unalloc_map[VFS_MAX_FD>>6];
 static vfs_fd_t _vfs_temp_fd=VFS_FD_ERROR;
-
-
-
-static void _error(const char* str){
-	printf("Error: %s\n",str);
-}
+static vfs_error_t _vfs_error;
 
 
 
@@ -48,7 +43,7 @@ static vfs_node_t* _alloc_node(const char* name,unsigned short int length,vfs_no
 			out->directory.first_entry=NULL;
 			break;
 		default:
-			_error("_alloc_node: Invalid type");
+			_vfs_error=VFS_ERROR_INTERNAL;
 			break;
 	}
 	out->parent=NULL;
@@ -78,7 +73,7 @@ static void _release_node(vfs_node_t* node){
 	}
 	if (node->type==VFS_NODE_TYPE_DIRECTORY){
 		if (node->directory.first_entry){
-			_error("directory not empty");
+			_vfs_error=VFS_ERROR_DIRECTORY_NOT_EMPTY;
 		}
 	}
 	if (node->type==VFS_NODE_TYPE_LINK){
@@ -106,7 +101,7 @@ static void _release_node_with_children(vfs_node_t* node){
 
 static void _add_vfs_node(vfs_node_t* directory,vfs_node_t* node){
 	if (directory->type!=VFS_NODE_TYPE_DIRECTORY){
-		_error("_add_vfs_node requires a VFS_NODE_TYPE_DIRECTORY node");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return;
 	}
 	directory->ref_cnt++;
@@ -123,7 +118,7 @@ static void _add_vfs_node(vfs_node_t* directory,vfs_node_t* node){
 
 static void _set_link_target(vfs_node_t* node,const char* link_target){
 	if (node->type!=VFS_NODE_TYPE_LINK){
-		_error("_set_link_target requires a VFS_NODE_TYPE_LINK node");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return;
 	}
 	free(node->link.link);
@@ -269,11 +264,13 @@ void vfs_init(void){
 		_vfs_fd_unalloc_map[i]=0xffffffffffffffffull;
 	}
 	_vfs_temp_fd=VFS_FD_ERROR;
+	_vfs_error=VFS_ERROR_NO_ERROR;
 }
 
 
 
 void vfs_deinit(void){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	_vfs_temp_fd=VFS_FD_ERROR;
 	while (_vfs_root_fd){
 		_dealloc_descriptor(_vfs_root_fd,0);
@@ -284,15 +281,30 @@ void vfs_deinit(void){
 
 
 
+vfs_error_t vfs_get_error(void){
+	return _vfs_error;
+}
+
+
+
+vfs_error_t vfs_set_error(vfs_error_t error){
+	vfs_error_t out=_vfs_error;
+	_vfs_error=error;
+	return out;
+}
+
+
+
 vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,const char* link_target){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if ((flags&(VFS_FLAG_DIRECTORY|VFS_FLAG_LINK))==(VFS_FLAG_DIRECTORY|VFS_FLAG_LINK)){
-		_error("Invalid flags");
+		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		return VFS_FD_ERROR;
 	}
 	unsigned int link_count=0;
 _retry_lookup:
 	if (path[0]!='/'){
-		_error("File not found");
+		_vfs_error=VFS_ERROR_FILE_NOT_FOUND;
 		return VFS_FD_ERROR;
 	}
 	vfs_node_t* node=_vfs_root_node;
@@ -308,7 +320,7 @@ _retry_lookup:
 		if (!i){
 			if (path[-1]=='/'){
 				if (node->type!=VFS_NODE_TYPE_DIRECTORY){
-					_error("File not found");
+					_vfs_error=VFS_ERROR_FILE_NOT_FOUND;
 					return VFS_FD_ERROR;
 				}
 			}
@@ -317,7 +329,7 @@ _retry_lookup:
 		vfs_node_t* child=_lookup_vfs_node(node,path,i);
 		if (!child){
 			if (path[i]||!(flags&VFS_FLAG_CREATE)||node->type!=VFS_NODE_TYPE_DIRECTORY){
-				_error("File not found");
+				_vfs_error=VFS_ERROR_FILE_NOT_FOUND;
 				return VFS_FD_ERROR;
 			}
 			child=_alloc_node(path,i,((flags&VFS_FLAG_DIRECTORY)?VFS_NODE_TYPE_DIRECTORY:((flags&VFS_FLAG_LINK)?VFS_NODE_TYPE_LINK:VFS_NODE_TYPE_DATA)));
@@ -334,13 +346,13 @@ _retry_lookup:
 		path=node->link.link;
 		link_count++;
 		if (link_count>=MAX_LINK_FOLLOW_COUNT){
-			_error("Too many links");
+			_vfs_error=VFS_ERROR_TOO_MANY_LINKS;
 			return VFS_FD_ERROR;
 		}
 		goto _retry_lookup;
 	}
 	if (flags&_invalid_flags[node->type]){
-		_error("Invalid flags");
+		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		goto _error_cleanup;
 	}
 	if (flags&VFS_FLAG_APPEND){
@@ -360,13 +372,14 @@ _error_cleanup:
 
 
 _Bool vfs_close(vfs_fd_t fd){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	_dealloc_descriptor(fd_data,1);
@@ -376,17 +389,18 @@ _Bool vfs_close(vfs_fd_t fd){
 
 
 _Bool vfs_unlink(vfs_fd_t fd){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	if (fd_data->node->type==VFS_NODE_TYPE_DIRECTORY&&fd_data->node->directory.first_entry){
-		_error("Directory not empty");
+		_vfs_error=VFS_ERROR_DIRECTORY_NOT_EMPTY;
 		return 0;
 	}
 	if (!(fd_data->node->ref_cnt&VFS_REF_CNT_FLAG_UNLINKED)){
@@ -400,17 +414,18 @@ _Bool vfs_unlink(vfs_fd_t fd){
 
 
 vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	if (!(fd_data->flags&VFS_FLAG_READ)){
-		_error("Operation not supported");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_node_t* node=fd_data->node;
@@ -428,17 +443,18 @@ vfs_offset_t vfs_read(vfs_fd_t fd,void* buffer,vfs_offset_t count){
 
 
 vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	if (!(fd_data->flags&VFS_FLAG_WRITE)){
-		_error("Operation not supported");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_node_t* node=fd_data->node;
@@ -461,17 +477,18 @@ vfs_offset_t vfs_write(vfs_fd_t fd,const void* buffer,vfs_offset_t count){
 
 
 vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_OFFSET_ERROR;
 	}
 	if (fd_data->node->type!=VFS_NODE_TYPE_DATA){
-		_error("Not a regular file");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return VFS_OFFSET_ERROR;
 	}
 	switch (flags){
@@ -485,7 +502,7 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 			fd_data->offset=fd_data->node->data.length;
 			break;
 		default:
-			_error("Invalid flags");
+			_vfs_error=VFS_ERROR_INVALID_FLAGS;
 			return VFS_OFFSET_ERROR;
 	}
 	if (fd_data->offset>fd_data->node->data.length){
@@ -497,17 +514,18 @@ vfs_offset_t vfs_seek(vfs_fd_t fd,vfs_offset_t offset,vfs_flags_t flags){
 
 
 unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	if (fd_data->node->type!=VFS_NODE_TYPE_LINK){
-		_error("Not a link");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return 0;
 	}
 	if (!buffer_length){
@@ -542,17 +560,18 @@ unsigned int vfs_read_link(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
 
 
 _Bool vfs_write_link(vfs_fd_t fd,const char* path){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	if (fd_data->node->type!=VFS_NODE_TYPE_LINK){
-		_error("Not a link");
+		_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 		return 0;
 	}
 	_set_link_target(fd_data->node,path);
@@ -562,13 +581,14 @@ _Bool vfs_write_link(vfs_fd_t fd,const char* path){
 
 
 _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_node_t* node=fd_data->node;
@@ -580,7 +600,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 			break;
 		case VFS_FLAG_RELATIVE_CHILD:
 			if (node->type!=VFS_NODE_TYPE_DIRECTORY){
-				_error("Not a directory");
+				_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
 				return 0;
 			}
 			node=node->directory.first_entry;
@@ -592,7 +612,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 			node=node->prev_sibling;
 			break;
 		default:
-			_error("Invalid flags");
+			_vfs_error=VFS_ERROR_INVALID_FLAGS;
 			return 0;
 	}
 	if (!node){
@@ -619,13 +639,14 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 
 
 unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	if (!buffer||!buffer_length){
@@ -661,13 +682,14 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 
 
 _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
 	_get_node_data(fd,fd_data->node,stat);
@@ -677,18 +699,19 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 
 
 vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
+	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_FD_ERROR;
 	}
 	vfs_file_descriptor_t* fd_data=_lookup_descriptor(fd);
 	if (!fd_data){
-		_error("Unknown file descriptor");
+		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return VFS_FD_ERROR;
 	}
 	vfs_node_t* node=fd_data->node;
 	if (flags&(VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY|VFS_FLAG_LINK|_invalid_flags[node->type])){
-		_error("Invalid flags");
+		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		return VFS_FD_ERROR;
 	}
 	if (flags&VFS_FLAG_REPLACE_FD){

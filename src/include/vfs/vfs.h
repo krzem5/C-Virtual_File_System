@@ -12,6 +12,15 @@
 
 
 
+#define VFS_ERROR_NO_ERROR 0
+#define VFS_ERROR_DIRECTORY_NOT_EMPTY 1
+#define VFS_ERROR_FILE_NOT_FOUND 2
+#define VFS_ERROR_INVALID_FLAGS 3
+#define VFS_ERROR_OPERATION_NOT_SUPPORTED 4
+#define VFS_ERROR_TOO_MANY_LINKS 5
+#define VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR 6
+#define VFS_ERROR_INTERNAL 7
+
 #define VFS_FD_ERROR 0xffff
 
 #define VFS_OFFSET_ERROR 0xffffffff
@@ -40,6 +49,10 @@
 
 #define VFS_REF_CNT_FLAG_UNLINKED 0x80000000
 #define VFS_REF_CNT_COUNT_MASK 0x7fffffff
+
+
+
+typedef unsigned char vfs_error_t;
 
 
 
@@ -113,6 +126,14 @@ void vfs_init(void);
 
 
 void vfs_deinit(void);
+
+
+
+vfs_error_t vfs_get_error(void);
+
+
+
+vfs_error_t vfs_set_error(vfs_error_t error);
 
 
 
