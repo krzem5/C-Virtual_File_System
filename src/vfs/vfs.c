@@ -701,12 +701,8 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 			}
 		case 0:
 			if (rwa_flags){
-				if (flags&VFS_FLAG_REPLACE_FD){
-					fd_data->flags=rwa_flags;
-				}
-				else{
-					stat->fd=_alloc_descriptor(VFS_FD_ERROR,node,rwa_flags,fd_data->offset);
-				}
+				_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
+				return 0;
 			}
 			else{
 				stat->fd=fd;

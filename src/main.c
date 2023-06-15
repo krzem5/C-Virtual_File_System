@@ -1,7 +1,3 @@
-// add flag to dup the fd returned via vfs_stat
-
-
-
 #include <vfs/vfs.h>
 #include <stdio.h>
 
