@@ -676,6 +676,7 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 }
 
 
+
 _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
