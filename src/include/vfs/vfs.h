@@ -169,25 +169,21 @@ _Bool vfs_write_link(vfs_fd_t fd,const char* path);
 
 
 
-_Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat);
-
-
-
-static inline _Bool vfs_read_dir(vfs_fd_t fd,vfs_stat_t* stat){
-	return (stat->fd==VFS_FD_ERROR?vfs_get_relative(fd,VFS_FLAG_RELATIVE_CHILD,stat):vfs_get_relative(stat->fd,VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_REPLACE_FD,stat));
-}
-
-
-
 unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_length);
 
 
 
-_Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat);
+_Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat);
 
 
 
 vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd);
+
+
+
+static inline _Bool vfs_read_dir(vfs_fd_t fd,vfs_stat_t* stat){
+	return (stat->fd==VFS_FD_ERROR?vfs_stat(fd,VFS_FLAG_RELATIVE_CHILD,stat):vfs_stat(stat->fd,VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_REPLACE_FD,stat));
+}
 
 
 

@@ -677,7 +677,7 @@ unsigned int vfs_absolute_path(vfs_fd_t fd,char* buffer,unsigned int buffer_leng
 
 
 
-_Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
+_Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
 		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
@@ -688,7 +688,42 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
 		return 0;
 	}
-	_get_node_data(fd,fd_data->node,stat);
+	vfs_node_t* node=fd_data->node;
+	switch (flags&(~VFS_FLAG_REPLACE_FD)){
+		case 0:
+			stat->fd=fd;
+			goto _skip_descriptor_allocation;
+		case VFS_FLAG_RELATIVE_PARENT:
+			if (node->parent){
+				node=node->parent;
+			}
+			break;
+		case VFS_FLAG_RELATIVE_CHILD:
+			if (node->type!=VFS_NODE_TYPE_DIRECTORY){
+				_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
+				return 0;
+			}
+			node=node->directory.first_entry;
+			break;
+		case VFS_FLAG_RELATIVE_NEXT_SIBLING:
+			node=node->next_sibling;
+			break;
+		case VFS_FLAG_RELATIVE_PREV_SIBLING:
+			node=node->prev_sibling;
+			break;
+		default:
+			_vfs_error=VFS_ERROR_INVALID_FLAGS;
+			return 0;
+	}
+	if (!node){
+		if (flags&VFS_FLAG_REPLACE_FD){
+			_dealloc_descriptor(fd_data,1);
+		}
+		return 0;
+	}
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0,0xffffffff);
+_skip_descriptor_allocation:
+	_get_node_data(stat->fd,node,stat);
 	return 1;
 }
 

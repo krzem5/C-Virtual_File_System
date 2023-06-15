@@ -5,7 +5,7 @@
 
 static void _tree_recursive(vfs_fd_t fd){
 	vfs_stat_t stat;
-	if (!vfs_stat(fd,&stat)){
+	if (!vfs_stat(fd,0,&stat)){
 		return;
 	}
 	char path[VFS_MAX_PATH];
@@ -70,7 +70,7 @@ int main(void){
 	printf("Link: %s\n",link_target_path);
 	vfs_open("/lnk_to_a",0,0,NULL);
 	vfs_stat_t stat;
-	vfs_stat(i,&stat);
+	vfs_stat(i,0,&stat);
 	printf("type: %u, size: %u\n",stat.type,stat.size);
 	vfs_close(i);
 	tree();
