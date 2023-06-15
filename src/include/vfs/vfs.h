@@ -44,7 +44,7 @@
 #define VFS_NODE_TYPE_LINK 1
 #define VFS_NODE_TYPE_DIRECTORY 2
 
-#define VFS_DIR_ENTRY_INIT {.fd=VFS_FD_ERROR}
+#define VFS_STAT_INIT {.fd=VFS_FD_ERROR}
 
 #define VFS_REF_CNT_FLAG_UNLINKED 0x80000000
 #define VFS_REF_CNT_COUNT_MASK 0x7fffffff
@@ -78,10 +78,6 @@ typedef struct _VFS_STAT{
 	vfs_offset_t size;
 	vfs_node_type_t type;
 } vfs_stat_t;
-
-
-
-typedef vfs_stat_t vfs_dir_entry_t;
 
 
 

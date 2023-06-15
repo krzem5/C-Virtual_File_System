@@ -23,7 +23,7 @@ static void _tree_recursive(const vfs_stat_t* stat){
 		return;
 	}
 	printf("%s/\n",path);
-	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(stat->fd,&entry);){
+	for (vfs_stat_t entry=VFS_STAT_INIT;vfs_read_dir(stat->fd,&entry);){
 		_tree_recursive(&entry);
 	}
 }
