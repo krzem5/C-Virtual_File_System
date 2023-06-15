@@ -75,7 +75,8 @@ int main(void){
 	vfs_close(i);
 	tree();
 	i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,0,NULL);
-	j=vfs_dup(i,VFS_FLAG_READ,0);
+	j=vfs_dup(i,0,0);
+	vfs_dup(j,VFS_FLAG_READ|VFS_FLAG_REPLACE_FD,j);
 	printf("Write: %u\n",vfs_write(i,"abc_def_ghi",12));
 	char data[128];
 	printf("Read: %u (%s)\n",vfs_read(j,data,128),data);
