@@ -179,7 +179,7 @@ static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
 
 
 
-static vfs_fd_t _alloc_descriptor(vfs_fd_t fd,vfs_node_t* node,vfs_flags_t flags){
+static vfs_fd_t _alloc_descriptor(vfs_fd_t fd,vfs_node_t* node,vfs_flags_t flags,vfs_offset_t offset){
 	node->ref_cnt++;
 	vfs_file_descriptor_t* fd_data;
 	if (fd!=VFS_FD_ERROR){
@@ -212,7 +212,7 @@ static vfs_fd_t _alloc_descriptor(vfs_fd_t fd,vfs_node_t* node,vfs_flags_t flags
 	}
 	fd_data->node=node;
 	fd_data->flags=flags;
-	fd_data->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
+	fd_data->offset=(offset==0xffffffff?((flags&VFS_FLAG_APPEND)?node->data.length:0):offset);
 	return fd_data->fd;
 }
 
@@ -363,7 +363,7 @@ _retry_lookup:
 	if (flags&VFS_FLAG_APPEND){
 		flags|=VFS_FLAG_WRITE;
 	}
-	vfs_fd_t out=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,flags);
+	vfs_fd_t out=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,flags,0xffffffff);
 	if (out!=VFS_FD_ERROR){
 		return out;
 	}
@@ -626,7 +626,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		}
 		return 0;
 	}
-	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0);
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0,0xffffffff);
 	_get_node_data(stat->fd,node,stat);
 	return 1;
 }
@@ -709,7 +709,5 @@ vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd){
 		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		return VFS_FD_ERROR;
 	}
-	fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?target_fd:VFS_FD_ERROR),node,flags);
-	_lookup_descriptor(fd)->offset=fd_data->offset;
-	return fd;
+	return _alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?target_fd:VFS_FD_ERROR),node,flags,fd_data->offset);
 }
