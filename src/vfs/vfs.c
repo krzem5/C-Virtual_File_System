@@ -6,9 +6,9 @@
 
 
 static const vfs_flags_t _invalid_flags[]={
-	[VFS_NODE_TYPE_DATA]=VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
-	[VFS_NODE_TYPE_LINK]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
-	[VFS_NODE_TYPE_DIRECTORY]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING|VFS_FLAG_REPLACE_FD,
+	[VFS_NODE_TYPE_DATA]=VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
+	[VFS_NODE_TYPE_LINK]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
+	[VFS_NODE_TYPE_DIRECTORY]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
 };
 
 
@@ -179,9 +179,14 @@ static vfs_file_descriptor_t* _lookup_descriptor(vfs_fd_t fd){
 
 
 
-static vfs_fd_t _alloc_descriptor(vfs_node_t* node,vfs_flags_t flags){
+static vfs_fd_t _alloc_descriptor(vfs_fd_t fd,vfs_node_t* node,vfs_flags_t flags){
+	node->ref_cnt++;
 	vfs_file_descriptor_t* fd_data;
-	if (_vfs_temp_fd!=VFS_FD_ERROR){
+	if (fd!=VFS_FD_ERROR){
+		fd_data=_lookup_descriptor(fd);
+		_release_node(fd_data->node);
+	}
+	else if (_vfs_temp_fd!=VFS_FD_ERROR){
 		fd_data=_lookup_descriptor(_vfs_temp_fd);
 		_vfs_temp_fd=VFS_FD_ERROR;
 	}
@@ -190,10 +195,11 @@ static vfs_fd_t _alloc_descriptor(vfs_node_t* node,vfs_flags_t flags){
 		while (!_vfs_fd_unalloc_map[i]){
 			i++;
 			if (i==(VFS_MAX_FD>>6)){
+				node->ref_cnt--;
 				return VFS_FD_ERROR;
 			}
 		}
-		vfs_fd_t fd=(i<<6)+__builtin_ffsll(_vfs_fd_unalloc_map[i])-1;
+		fd=(i<<6)+__builtin_ffsll(_vfs_fd_unalloc_map[i])-1;
 		_vfs_fd_unalloc_map[i]&=_vfs_fd_unalloc_map[i]-1;
 		fd_data=malloc(sizeof(vfs_file_descriptor_t));
 		fd_data->prev=NULL;
@@ -207,7 +213,6 @@ static vfs_fd_t _alloc_descriptor(vfs_node_t* node,vfs_flags_t flags){
 	fd_data->node=node;
 	fd_data->flags=flags;
 	fd_data->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
-	node->ref_cnt++;
 	return fd_data->fd;
 }
 
@@ -295,7 +300,7 @@ vfs_error_t vfs_set_error(vfs_error_t error){
 
 
 
-vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,const char* link_target){
+vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,vfs_fd_t fd,const char* link_target){
 	_vfs_error=VFS_ERROR_NO_ERROR;
 	if ((flags&(VFS_FLAG_DIRECTORY|VFS_FLAG_LINK))==(VFS_FLAG_DIRECTORY|VFS_FLAG_LINK)){
 		_vfs_error=VFS_ERROR_INVALID_FLAGS;
@@ -358,7 +363,7 @@ _retry_lookup:
 	if (flags&VFS_FLAG_APPEND){
 		flags|=VFS_FLAG_WRITE;
 	}
-	vfs_fd_t out=_alloc_descriptor(node,flags);
+	vfs_fd_t out=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,flags);
 	if (out!=VFS_FD_ERROR){
 		return out;
 	}
@@ -621,17 +626,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		}
 		return 0;
 	}
-	if (flags&VFS_FLAG_REPLACE_FD){
-		node->ref_cnt++;
-		_release_node(fd_data->node);
-		fd_data->flags=0;
-		fd_data->offset=0;
-		fd_data->node=node;
-		stat->fd=fd;
-	}
-	else{
-		stat->fd=_alloc_descriptor(node,0);
-	}
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0);
 	_get_node_data(stat->fd,node,stat);
 	return 1;
 }
@@ -698,7 +693,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat){
 
 
 
-vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
+vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd){
 	_vfs_error=VFS_ERROR_NO_ERROR;
 	if (fd==VFS_FD_ERROR){
 		_vfs_error=VFS_ERROR_UNKNOWN_FILE_DESCRIPTOR;
@@ -714,15 +709,7 @@ vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags){
 		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		return VFS_FD_ERROR;
 	}
-	if (flags&VFS_FLAG_REPLACE_FD){
-		node->ref_cnt++;
-		_release_node(fd_data->node);
-		fd_data->flags=flags;
-		fd_data->offset=((flags&VFS_FLAG_APPEND)?node->data.length:0);
-		fd_data->node=node;
-		return fd;
-	}
-	fd=_alloc_descriptor(node,flags);
+	fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?target_fd:VFS_FD_ERROR),node,flags);
 	_lookup_descriptor(fd)->offset=fd_data->offset;
 	return fd;
 }

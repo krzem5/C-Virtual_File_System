@@ -35,7 +35,7 @@ static void _tree_recursive(vfs_fd_t fd){
 
 
 static void tree(void){
-	vfs_fd_t root=vfs_open("/",0,NULL);
+	vfs_fd_t root=vfs_open("/",0,0,NULL);
 	_tree_recursive(root);
 	vfs_close(root);
 }
@@ -44,14 +44,14 @@ static void tree(void){
 
 int main(void){
 	vfs_init();
-	vfs_fd_t i=vfs_open("/./.././../../a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
-	vfs_fd_t j=vfs_open("/b",VFS_FLAG_WRITE,NULL);
+	vfs_fd_t i=vfs_open("/./.././../../a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,0,NULL);
+	vfs_fd_t j=vfs_open("/b",VFS_FLAG_WRITE,0,NULL);
 	printf("%u,%u\n",i,j);
 	vfs_close(i);
 	vfs_close(j);
-	i=vfs_open("/dir",VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY,NULL);
-	j=vfs_open("/dir/test",VFS_FLAG_CREATE,NULL);
-	vfs_fd_t k=vfs_dup(j,0);
+	i=vfs_open("/dir",VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY,0,NULL);
+	j=vfs_open("/dir/test",VFS_FLAG_CREATE,0,NULL);
+	vfs_fd_t k=vfs_dup(j,0,0);
 	tree();
 	char buffer[VFS_MAX_PATH];
 	vfs_absolute_path(k,buffer,VFS_MAX_PATH);
@@ -59,27 +59,31 @@ int main(void){
 	vfs_unlink(j);
 	vfs_unlink(k);
 	vfs_unlink(i);
-	vfs_close(vfs_open("/lnk_to_a",VFS_FLAG_CREATE|VFS_FLAG_LINK,"/a"));
-	vfs_unlink(vfs_open("/lnk_to_a",0,NULL));
-	i=vfs_open("/lnk_to_a",VFS_FLAG_IGNORE_LINKS,NULL);
+	vfs_close(vfs_open("/lnk_to_a",VFS_FLAG_CREATE|VFS_FLAG_LINK,0,"/a"));
+	vfs_unlink(vfs_open("/lnk_to_a",0,0,NULL));
+	i=vfs_open("/lnk_to_a",VFS_FLAG_IGNORE_LINKS,0,NULL);
 	char link_target_path[VFS_MAX_PATH];
 	link_target_path[vfs_read_link(i,link_target_path,VFS_MAX_PATH)]=0;
 	printf("Link: %s\n",link_target_path);
 	vfs_write_link(i,"/b");
 	link_target_path[vfs_read_link(i,link_target_path,VFS_MAX_PATH)]=0;
 	printf("Link: %s\n",link_target_path);
-	vfs_open("/lnk_to_a",0,NULL);
+	vfs_open("/lnk_to_a",0,0,NULL);
 	vfs_stat_t stat;
 	vfs_stat(i,&stat);
 	printf("type: %u, size: %u\n",stat.type,stat.size);
 	vfs_close(i);
 	tree();
-	i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,NULL);
-	j=vfs_dup(i,VFS_FLAG_READ);
+	i=vfs_open("/a",VFS_FLAG_WRITE|VFS_FLAG_CREATE,0,NULL);
+	j=vfs_dup(i,VFS_FLAG_READ,0);
 	printf("Write: %u\n",vfs_write(i,"abc_def_ghi",12));
 	char data[128];
 	printf("Read: %u (%s)\n",vfs_read(j,data,128),data);
 	vfs_close(i);
+	vfs_open("/lnk_to_a",VFS_FLAG_IGNORE_LINKS|VFS_FLAG_REPLACE_FD,j,NULL);
+	printf("%u\n",vfs_get_error());
+	vfs_unlink(j);
+	tree();
 	vfs_deinit();
 	return 0;
 }

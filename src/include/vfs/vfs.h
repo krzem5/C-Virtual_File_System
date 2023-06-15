@@ -137,7 +137,7 @@ vfs_error_t vfs_set_error(vfs_error_t error);
 
 
 
-vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,const char* link_target);
+vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,vfs_fd_t fd,const char* link_target);
 
 
 
@@ -187,7 +187,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_stat_t* stat);
 
 
 
-vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags);
+vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd);
 
 
 
