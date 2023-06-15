@@ -181,8 +181,8 @@ vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd);
 
 
 
-static inline _Bool vfs_read_dir(vfs_fd_t fd,vfs_stat_t* stat){
-	return (stat->fd==VFS_FD_ERROR?vfs_stat(fd,VFS_FLAG_RELATIVE_CHILD,stat):vfs_stat(stat->fd,VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_REPLACE_FD,stat));
+static inline _Bool vfs_read_dir(vfs_fd_t dir_fd,vfs_stat_t* stat){
+	return (stat->fd==VFS_FD_ERROR?vfs_stat(dir_fd,VFS_FLAG_RELATIVE_CHILD,stat):vfs_stat(stat->fd,VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_REPLACE_FD,stat));
 }
 
 

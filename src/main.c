@@ -3,22 +3,18 @@
 
 
 
-static void _tree_recursive(vfs_fd_t fd){
-	vfs_stat_t stat;
-	if (!vfs_stat(fd,0,&stat)){
-		return;
-	}
+static void _tree_recursive(const vfs_stat_t* stat){
 	char path[VFS_MAX_PATH];
-	if (!vfs_absolute_path(fd,path,VFS_MAX_PATH)){
+	if (!vfs_absolute_path(stat->fd,path,VFS_MAX_PATH)){
 		return;
 	}
-	if (stat.type==VFS_NODE_TYPE_DATA){
+	if (stat->type==VFS_NODE_TYPE_DATA){
 		printf("%s\n",path);
 		return;
 	}
-	if (stat.type==VFS_NODE_TYPE_LINK){
+	if (stat->type==VFS_NODE_TYPE_LINK){
 		printf("%s -> ",path);
-		if (vfs_read_link(fd,path,VFS_MAX_PATH)){
+		if (vfs_read_link(stat->fd,path,VFS_MAX_PATH)){
 			printf("%s\n",path);
 		}
 		else{
@@ -27,8 +23,8 @@ static void _tree_recursive(vfs_fd_t fd){
 		return;
 	}
 	printf("%s/\n",path);
-	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(fd,&entry);){
-		_tree_recursive(entry.fd);
+	for (vfs_dir_entry_t entry=VFS_DIR_ENTRY_INIT;vfs_read_dir(stat->fd,&entry);){
+		_tree_recursive(&entry);
 	}
 }
 
@@ -36,7 +32,9 @@ static void _tree_recursive(vfs_fd_t fd){
 
 static void tree(void){
 	vfs_fd_t root=vfs_open("/",0,0,NULL);
-	_tree_recursive(root);
+	vfs_stat_t stat;
+	vfs_stat(root,0,&stat);
+	_tree_recursive(&stat);
 	vfs_close(root);
 }
 
