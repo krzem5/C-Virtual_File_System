@@ -1,5 +1,9 @@
 #ifndef _VFS_VFS_H_
 #define _VFS_VFS_H_ 1
+// disk structure:
+//   root: {node_descriptor:node_head, node_descriptor:free_node_head, used_sector_descriptor:used}
+//   node_descriptor: {offset:first_block_offset, count:block_count, usage_bitmap: [...], node_descriptor:next, node_descriptor:prev}
+//   used_sector_descriptor: {offset:first_block_offset, count:block_count, used_sector_descriptor: next, used_sector_descriptor:prev}
 
 
 
