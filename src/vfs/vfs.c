@@ -350,7 +350,7 @@ _retry_lookup:
 	if (!was_node_created&&node->type==VFS_NODE_TYPE_LINK&&!(flags&VFS_FLAG_IGNORE_LINKS)&&node->link.link){
 		path=node->link.link;
 		link_count++;
-		if (link_count>=MAX_LINK_FOLLOW_COUNT){
+		if (link_count>=VFS_MAX_LINK_FOLLOW_COUNT){
 			_vfs_error=VFS_ERROR_TOO_MANY_LINKS;
 			return VFS_FD_ERROR;
 		}

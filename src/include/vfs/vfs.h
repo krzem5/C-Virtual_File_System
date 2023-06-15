@@ -8,7 +8,7 @@
 
 #define VFS_MAX_FD 1024
 
-#define MAX_LINK_FOLLOW_COUNT 10
+#define VFS_MAX_LINK_FOLLOW_COUNT 10
 
 
 
