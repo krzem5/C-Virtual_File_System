@@ -690,6 +690,9 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 	}
 	vfs_node_t* node=fd_data->node;
 	vfs_flags_t rwa_flags=flags&(VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND);
+	if (rwa_flags&VFS_FLAG_APPEND){
+		rwa_flags|=VFS_FLAG_WRITE;
+	}
 	switch (flags&(~(VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_REPLACE_FD))){
 		case VFS_FLAG_RELATIVE_PARENT:
 			if (node->parent){
