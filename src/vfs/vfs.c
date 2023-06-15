@@ -689,15 +689,26 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		return 0;
 	}
 	vfs_node_t* node=fd_data->node;
-	switch (flags&(~VFS_FLAG_REPLACE_FD)){
-		case 0:
-			stat->fd=fd;
-			goto _skip_descriptor_allocation;
+	vfs_flags_t rwa_flags=flags&(VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND);
+	switch (flags&(~(VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_REPLACE_FD))){
 		case VFS_FLAG_RELATIVE_PARENT:
 			if (node->parent){
 				node=node->parent;
+				break;
 			}
-			break;
+		case 0:
+			if (rwa_flags){
+				if (flags&VFS_FLAG_REPLACE_FD){
+					fd_data->flags=rwa_flags;
+				}
+				else{
+					stat->fd=_alloc_descriptor(VFS_FD_ERROR,node,rwa_flags,fd_data->offset);
+				}
+			}
+			else{
+				stat->fd=fd;
+			}
+			goto _skip_descriptor_allocation;
 		case VFS_FLAG_RELATIVE_CHILD:
 			if (node->type!=VFS_NODE_TYPE_DIRECTORY){
 				_vfs_error=VFS_ERROR_OPERATION_NOT_SUPPORTED;
@@ -721,7 +732,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		}
 		return 0;
 	}
-	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0,0xffffffff);
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,rwa_flags,0xffffffff);
 _skip_descriptor_allocation:
 	_get_node_data(stat->fd,node,stat);
 	return 1;
