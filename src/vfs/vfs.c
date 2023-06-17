@@ -212,7 +212,7 @@ static vfs_fd_t _alloc_descriptor(vfs_fd_t fd,vfs_node_t* node,vfs_flags_t flags
 	}
 	fd_data->node=node;
 	fd_data->flags=flags;
-	fd_data->offset=(offset==0xffffffff?((flags&VFS_FLAG_APPEND)?node->data.length:0):offset);
+	fd_data->offset=(offset==VFS_OFFSET_ERROR?((flags&VFS_FLAG_APPEND)?node->data.length:0):offset);
 	return fd_data->fd;
 }
 
@@ -363,7 +363,7 @@ _retry_lookup:
 	if (flags&VFS_FLAG_APPEND){
 		flags|=VFS_FLAG_WRITE;
 	}
-	vfs_fd_t out=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,flags,0xffffffff);
+	vfs_fd_t out=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,flags,VFS_OFFSET_ERROR);
 	if (out!=VFS_FD_ERROR){
 		return out;
 	}
@@ -626,7 +626,7 @@ _Bool vfs_get_relative(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		}
 		return 0;
 	}
-	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0,0xffffffff);
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,0,VFS_OFFSET_ERROR);
 	_get_node_data(stat->fd,node,stat);
 	return 1;
 }
@@ -731,7 +731,7 @@ _Bool vfs_stat(vfs_fd_t fd,vfs_flags_t flags,vfs_stat_t* stat){
 		}
 		return 0;
 	}
-	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,rwa_flags,0xffffffff);
+	stat->fd=_alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?fd:VFS_FD_ERROR),node,rwa_flags,VFS_OFFSET_ERROR);
 _skip_descriptor_allocation:
 	_get_node_data(stat->fd,node,stat);
 	return 1;
