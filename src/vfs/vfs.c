@@ -1,15 +1,6 @@
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <vfs/vfs.h>
-
-
-
-static const vfs_flags_t _invalid_flags[]={
-	[VFS_NODE_TYPE_DATA]=VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
-	[VFS_NODE_TYPE_LINK]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
-	[VFS_NODE_TYPE_DIRECTORY]=VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_SEEK_SET|VFS_FLAG_SEEK_ADD|VFS_FLAG_SEEK_END|VFS_FLAG_RELATIVE_PARENT|VFS_FLAG_RELATIVE_CHILD|VFS_FLAG_RELATIVE_NEXT_SIBLING|VFS_FLAG_RELATIVE_PREV_SIBLING,
-};
 
 
 
@@ -18,6 +9,17 @@ static vfs_file_descriptor_t* _vfs_root_fd=NULL;
 static unsigned long long int _vfs_fd_unalloc_map[VFS_MAX_FD>>6];
 static vfs_fd_t _vfs_temp_fd=VFS_FD_ERROR;
 static vfs_error_t _vfs_error;
+
+
+
+
+static _Bool _check_flags(vfs_flags_t flags,vfs_flags_t valid_flags){
+	if (flags&(~valid_flags)){
+		_vfs_error=VFS_ERROR_INVALID_FLAGS;
+		return 1;
+	}
+	return 0;
+}
 
 
 
@@ -306,6 +308,21 @@ vfs_fd_t vfs_open(const char* path,vfs_flags_t flags,vfs_fd_t fd,const char* lin
 		_vfs_error=VFS_ERROR_INVALID_FLAGS;
 		return VFS_FD_ERROR;
 	}
+	if (flags&VFS_FLAG_DIRECTORY){
+		if (_check_flags(flags,VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY|VFS_FLAG_IGNORE_LINKS|VFS_FLAG_REPLACE_FD)){
+			return VFS_FD_ERROR;
+		}
+	}
+	else if (flags&VFS_FLAG_LINK){
+		if (_check_flags(flags,VFS_FLAG_CREATE|VFS_FLAG_LINK|VFS_FLAG_IGNORE_LINKS|VFS_FLAG_REPLACE_FD)){
+			return VFS_FD_ERROR;
+		}
+	}
+	else{
+		if (_check_flags(flags,VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND|VFS_FLAG_CREATE|VFS_FLAG_IGNORE_LINKS|VFS_FLAG_REPLACE_FD)){
+			return VFS_FD_ERROR;
+		}
+	}
 	unsigned int link_count=0;
 _retry_lookup:
 	if (path[0]!='/'){
@@ -356,10 +373,6 @@ _retry_lookup:
 		}
 		goto _retry_lookup;
 	}
-	if (flags&_invalid_flags[node->type]){
-		_vfs_error=VFS_ERROR_INVALID_FLAGS;
-		goto _error_cleanup;
-	}
 	if (flags&VFS_FLAG_APPEND){
 		flags|=VFS_FLAG_WRITE;
 	}
@@ -367,7 +380,6 @@ _retry_lookup:
 	if (out!=VFS_FD_ERROR){
 		return out;
 	}
-_error_cleanup:
 	if (was_node_created){
 		_release_node(node);
 	}
@@ -751,8 +763,7 @@ vfs_fd_t vfs_dup(vfs_fd_t fd,vfs_flags_t flags,vfs_fd_t target_fd){
 		return VFS_FD_ERROR;
 	}
 	vfs_node_t* node=fd_data->node;
-	if (flags&(VFS_FLAG_CREATE|VFS_FLAG_DIRECTORY|VFS_FLAG_LINK|_invalid_flags[node->type])){
-		_vfs_error=VFS_ERROR_INVALID_FLAGS;
+	if (_check_flags(flags,(node->type==VFS_NODE_TYPE_DATA?VFS_FLAG_READ|VFS_FLAG_WRITE|VFS_FLAG_APPEND:0)|VFS_FLAG_REPLACE_FD)){
 		return VFS_FD_ERROR;
 	}
 	return _alloc_descriptor(((flags&VFS_FLAG_REPLACE_FD)?target_fd:VFS_FD_ERROR),node,flags,fd_data->offset);
