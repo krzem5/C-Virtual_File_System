@@ -39,7 +39,7 @@ else:
 			for f in cfl:
 				if (f[-2:]==".c"):
 					fl.append(f"build/{(r+f).replace('/','$')}.o")
-					if (subprocess.run(["gcc","-Wall","-Werror","-O3","-g0","-c",r+f,"-o",f"build/{(r+f).replace('/','$')}.o","-Isrc/include"]).returncode!=0):
+					if (subprocess.run(["gcc","-Wall","-Werror","-mno-avx","-mno-sse","-mbmi","-mbmi2","-march=native","-O3","-g0","-c",r+f,"-o",f"build/{(r+f).replace('/','$')}.o","-Isrc/include"]).returncode!=0):
 						err=True
 		if (err or subprocess.run(["gcc","-o","build/vfs","-g0"]+fl).returncode!=0):
 			sys.exit(1)
@@ -51,7 +51,7 @@ else:
 			for f in cfl:
 				if (f[-2:]==".c"):
 					fl.append(f"build/{(r+f).replace('/','$')}.o")
-					if (subprocess.run(["gcc","-Wall","-Werror","-O0","-g","-c",r+f,"-o",f"build/{(r+f).replace('/','$')}.o","-Isrc/include"]).returncode!=0):
+					if (subprocess.run(["gcc","-Wall","-Werror","-mno-avx","-mno-sse","-mbmi","-mbmi2","-march=native","-O0","-g","-c",r+f,"-o",f"build/{(r+f).replace('/','$')}.o","-Isrc/include"]).returncode!=0):
 						err=True
 		if (err or subprocess.run(["gcc","-o","build/vfs","-g"]+fl).returncode!=0):
 			sys.exit(1)
