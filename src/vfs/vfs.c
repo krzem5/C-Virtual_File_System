@@ -12,7 +12,6 @@ static vfs_error_t _vfs_error;
 
 
 
-
 static inline _Bool _check_flags(vfs_flags_t flags,vfs_flags_t valid_flags){
 	if (flags&(~valid_flags)){
 		_vfs_error=VFS_ERROR_INVALID_FLAGS;
